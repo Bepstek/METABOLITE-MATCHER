@@ -1,0 +1,1 @@
+values are based on https://fiehnlab.ucdavis.edu/staff/kind/metabolomics/ms-adduct-calculator/

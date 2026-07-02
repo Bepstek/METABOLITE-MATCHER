@@ -1,0 +1,30 @@
+{
+  "queryId": "ml-smoke-109-170",
+  "queryKey": "ml-smoke-109-170",
+  "precursorMz": 170.16,
+  "peakList": "109.2 3.407\n124.2 47.4946\n124.5 3.0944\n170.16 100\n170.52 13.2397",
+  "precursorTolerance": 500000,
+  "precursorToleranceUnit": "ppm",
+  "precursorAdductLabels": [
+    "M+H",
+    "[M+XYZ]+"
+  ],
+  "polarity": "positive",
+  "spectrumKind": "experimental",
+  "minMatchedPeaks": 1,
+  "fragmentCandidateLimit": 1000,
+  "returnCandidateLimit": 100,
+  "targetAccession": "BAD_ID",
+  "targetAccessions": [
+    "HMDB0000001"
+  ],
+  "responseFormat": "nested",
+  "includeMatchedPeakPairs": false,
+  "clientMetadata": {
+    "se": "ml-smoke-109-170",
+    "Adducts": "M+H",
+    "Score": 0,
+    "Mass Error (ppm)": 0,
+    "Description": "Smoke test query"
+  }
+}

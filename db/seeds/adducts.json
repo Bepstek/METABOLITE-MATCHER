@@ -1,0 +1,370 @@
+[
+  {
+    "label": "[M+3H]3+",
+    "ion_mode": "positive",
+    "charge": 3,
+    "mass_multiplier": 1,
+    "mass_shift": 3.021828,
+    "enabled": true
+  },
+  {
+    "label": "[M+2H+Na]3+",
+    "ion_mode": "positive",
+    "charge": 3,
+    "mass_multiplier": 1,
+    "mass_shift": 25.00377,
+    "enabled": true
+  },
+  {
+    "label": "[M+H+2Na]3+",
+    "ion_mode": "positive",
+    "charge": 3,
+    "mass_multiplier": 1,
+    "mass_shift": 47.2985712,
+    "enabled": true
+  },
+  {
+    "label": "[M+3Na]3+",
+    "ion_mode": "positive",
+    "charge": 3,
+    "mass_multiplier": 1,
+    "mass_shift": 68.967654,
+    "enabled": true
+  },
+  {
+    "label": "[M+2H]2+",
+    "ion_mode": "positive",
+    "charge": 2,
+    "mass_multiplier": 1,
+    "mass_shift": 2.014552,
+    "enabled": true
+  },
+  {
+    "label": "[M+H+NH4]2+",
+    "ion_mode": "positive",
+    "charge": 2,
+    "mass_multiplier": 1,
+    "mass_shift": 19.0411,
+    "enabled": true
+  },
+  {
+    "label": "[M+H+Na]2+",
+    "ion_mode": "positive",
+    "charge": 2,
+    "mass_multiplier": 1,
+    "mass_shift": 23.996494,
+    "enabled": true
+  },
+  {
+    "label": "[M+H+K]2+",
+    "ion_mode": "positive",
+    "charge": 2,
+    "mass_multiplier": 1,
+    "mass_shift": 39.970434,
+    "enabled": true
+  },
+  {
+    "label": "[M+ACN+2H]2+",
+    "ion_mode": "positive",
+    "charge": 2,
+    "mass_multiplier": 1,
+    "mass_shift": 43.0411,
+    "enabled": true
+  },
+  {
+    "label": "[M+2Na]2+",
+    "ion_mode": "positive",
+    "charge": 2,
+    "mass_multiplier": 1,
+    "mass_shift": 45.978436,
+    "enabled": true
+  },
+  {
+    "label": "[M+2ACN+2H]2+",
+    "ion_mode": "positive",
+    "charge": 2,
+    "mass_multiplier": 1,
+    "mass_shift": 84.067646,
+    "enabled": true
+  },
+  {
+    "label": "[M+3ACN+2H]2+",
+    "ion_mode": "positive",
+    "charge": 2,
+    "mass_multiplier": 1,
+    "mass_shift": 125.094194,
+    "enabled": true
+  },
+  {
+    "label": "[M+H]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 1,
+    "mass_shift": 1.007276,
+    "enabled": true
+  },
+  {
+    "label": "[M+NH4]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 1,
+    "mass_shift": 18.033823,
+    "enabled": true
+  },
+  {
+    "label": "[M+Na]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 1,
+    "mass_shift": 22.989218,
+    "enabled": true
+  },
+  {
+    "label": "[M+CH3OH+H]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 1,
+    "mass_shift": 33.033489,
+    "enabled": true
+  },
+  {
+    "label": "[M+K]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 1,
+    "mass_shift": 38.963158,
+    "enabled": true
+  },
+  {
+    "label": "[M+ACN+H]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 1,
+    "mass_shift": 42.033823,
+    "enabled": true
+  },
+  {
+    "label": "[M+2Na-H]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 1,
+    "mass_shift": 44.97116,
+    "enabled": true
+  },
+  {
+    "label": "[M+IsoProp+H]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 1,
+    "mass_shift": 61.06534,
+    "enabled": true
+  },
+  {
+    "label": "[M+ACN+Na]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 1,
+    "mass_shift": 64.015765,
+    "enabled": true
+  },
+  {
+    "label": "[M+2K-H]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 1,
+    "mass_shift": 76.91904,
+    "enabled": true
+  },
+  {
+    "label": "[M+DMSO+H]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 1,
+    "mass_shift": 79.02122,
+    "enabled": true
+  },
+  {
+    "label": "[M+2ACN+H]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 1,
+    "mass_shift": 83.06037,
+    "enabled": true
+  },
+  {
+    "label": "[M+IsoProp+Na+H]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 1,
+    "mass_shift": 84.05511,
+    "enabled": true
+  },
+  {
+    "label": "[2M+H]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 2,
+    "mass_shift": 1.007276,
+    "enabled": true
+  },
+  {
+    "label": "[2M+NH4]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 2,
+    "mass_shift": 18.033823,
+    "enabled": true
+  },
+  {
+    "label": "[2M+Na]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 2,
+    "mass_shift": 22.989218,
+    "enabled": true
+  },
+  {
+    "label": "[2M+K]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 2,
+    "mass_shift": 38.963158,
+    "enabled": true
+  },
+  {
+    "label": "[2M+ACN+H]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 2,
+    "mass_shift": 42.033823,
+    "enabled": true
+  },
+  {
+    "label": "[2M+ACN+Na]+",
+    "ion_mode": "positive",
+    "charge": 1,
+    "mass_multiplier": 2,
+    "mass_shift": 64.015765,
+    "enabled": true
+  },
+  {
+    "label": "[M-3H]3-",
+    "ion_mode": "negative",
+    "charge": -3,
+    "mass_multiplier": 1,
+    "mass_shift": -3.021828,
+    "enabled": true
+  },
+  {
+    "label": "[M-2H]2-",
+    "ion_mode": "negative",
+    "charge": -2,
+    "mass_multiplier": 1,
+    "mass_shift": -2.014552,
+    "enabled": true
+  },
+  {
+    "label": "[M-H2O-H]-",
+    "ion_mode": "negative",
+    "charge": -1,
+    "mass_multiplier": 1,
+    "mass_shift": -19.01839,
+    "enabled": true
+  },
+  {
+    "label": "[M-H]-",
+    "ion_mode": "negative",
+    "charge": -1,
+    "mass_multiplier": 1,
+    "mass_shift": -1.007276,
+    "enabled": true
+  },
+  {
+    "label": "[M+Na-2H]-",
+    "ion_mode": "negative",
+    "charge": -1,
+    "mass_multiplier": 1,
+    "mass_shift": 20.974666,
+    "enabled": true
+  },
+  {
+    "label": "[M+Cl]-",
+    "ion_mode": "negative",
+    "charge": -1,
+    "mass_multiplier": 1,
+    "mass_shift": 34.969402,
+    "enabled": true
+  },
+  {
+    "label": "[M+K-2H]-",
+    "ion_mode": "negative",
+    "charge": -1,
+    "mass_multiplier": 1,
+    "mass_shift": 36.948606,
+    "enabled": true
+  },
+  {
+    "label": "[M+FA-H]-",
+    "ion_mode": "negative",
+    "charge": -1,
+    "mass_multiplier": 1,
+    "mass_shift": 44.998201,
+    "enabled": true
+  },
+  {
+    "label": "[M+Hac-H]-",
+    "ion_mode": "negative",
+    "charge": -1,
+    "mass_multiplier": 1,
+    "mass_shift": 59.013851,
+    "enabled": true
+  },
+  {
+    "label": "[M+Br]-",
+    "ion_mode": "negative",
+    "charge": -1,
+    "mass_multiplier": 1,
+    "mass_shift": 78.918885,
+    "enabled": true
+  },
+  {
+    "label": "[M+TFA-H]-",
+    "ion_mode": "negative",
+    "charge": -1,
+    "mass_multiplier": 1,
+    "mass_shift": 112.985586,
+    "enabled": true
+  },
+  {
+    "label": "[2M-H]-",
+    "ion_mode": "negative",
+    "charge": -1,
+    "mass_multiplier": 2,
+    "mass_shift": -1.007276,
+    "enabled": true
+  },
+  {
+    "label": "[2M+FA-H]-",
+    "ion_mode": "negative",
+    "charge": -1,
+    "mass_multiplier": 2,
+    "mass_shift": 44.998201,
+    "enabled": true
+  },
+  {
+    "label": "[2M+Hac-H]-",
+    "ion_mode": "negative",
+    "charge": -1,
+    "mass_multiplier": 2,
+    "mass_shift": 59.013851,
+    "enabled": true
+  },
+  {
+    "label": "[3M-H]-",
+    "ion_mode": "negative",
+    "charge": -1,
+    "mass_multiplier": 3,
+    "mass_shift": -1.007276,
+    "enabled": true
+  }
+]
