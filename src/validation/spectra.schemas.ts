@@ -33,6 +33,7 @@ export const msMsSearchSchema = z.object({
   precursorAdductIds: optionalAdductIds,
   sourceTermId: optionalPositiveInt,
   minMatchedPeaks: z.coerce.number().int().positive().max(50).default(3),
+  useMlRanking: z.coerce.boolean().optional().default(false),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce
     .number()

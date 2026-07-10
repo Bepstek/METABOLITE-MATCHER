@@ -40,6 +40,8 @@ async function testCompoundRepositories() {
     query: CREATINE_NAME,
     limit: 10,
     offset: 0,
+    sortBy: "name",
+    sortDirection: "asc",
   });
   const nameTotal = await countCompoundsByName(db, { query: CREATINE_NAME });
   console.log(`[name] ${CREATINE_NAME}: ${nameRows.length} rows / ${nameTotal} total`);
@@ -53,8 +55,15 @@ async function testCompoundRepositories() {
     accession: CREATINE_ACCESSION,
     limit: 10,
     offset: 0,
+    spectrumKind: "both",
+    polarity: "both",
+    sortDirection: "asc",
   });
-  const spectraTotal = await countCompoundSpectraByAccession(db, CREATINE_ACCESSION);
+  const spectraTotal = await countCompoundSpectraByAccession(db, {
+    accession: CREATINE_ACCESSION,
+    polarity: "both",
+    spectrumKind: "both",
+  });
   console.log(`[compound spectra] ${CREATINE_ACCESSION}: ${spectraRows.length} rows / ${spectraTotal} total`);
   logFirstRows("[compound spectra] rows", spectraRows);
 }

@@ -9,6 +9,8 @@ import {
   type MsMsCandidateSpectrumRow,
   type SpectrumPeakRow,
 } from "../repositories/spectra.repository";
+import { findPrecursorAdductMatchesForMl } from "../repositories/ml.repository";
+import { getMlModel, predictProbability } from "./ml-predictor";
 import { buildPaginationMeta, getOffsetPagination, type PaginationMeta } from "./pagination";
 import { msMsSearchSchema, spectrumLookupSchema } from "@/validation/spectra.schemas";
 
@@ -105,6 +107,8 @@ export type MsMsSearchResult = {
   queryNorm: number;
   libraryNorm: number;
   matchedPeakPairs: MatchedPeakPairResult[];
+  mlProbability?: number;
+  mlRank?: number;
 };
 
 export type MsMsSearchResponse = PaginatedResult<MsMsSearchResult> & {
@@ -381,6 +385,56 @@ export async function searchMsMsSpectraService(db: Kysely<DB>, rawInput: unknown
     }
   }
 
+  const model = input.useMlRanking ? getMlModel() : null;
+
+  // If precursorMz is active and we want to run ML, fetch exact precursor matches for adduct ppm error and mass ranking features
+  const adductMatchesByCompoundId = new Map<number, any>();
+  const precursorMassRanks = new Map<number, number>();
+
+  if (input.precursorMz !== undefined && model) {
+    try {
+      const precursorMatches = await findPrecursorAdductMatchesForMl(db, {
+        precursorMz: input.precursorMz,
+        tolerance: input.precursorTolerance,
+        toleranceUnit: input.precursorToleranceUnit,
+        polarity: input.polarity,
+        adductIds: input.polarity === "both" ? [] : input.precursorAdductIds,
+        sourceTermId: input.sourceTermId,
+      });
+
+      const grouped = new Map<number, typeof precursorMatches>();
+      for (const match of precursorMatches) {
+        const current = grouped.get(match.compound_id) ?? [];
+        current.push(match);
+        grouped.set(match.compound_id, current);
+      }
+
+      for (const [compId, rows] of grouped.entries()) {
+        rows.sort((a, b) => Number(a.absolute_mass_error_ppm) - Number(b.absolute_mass_error_ppm));
+        adductMatchesByCompoundId.set(compId, rows[0]);
+      }
+
+      const bestRows = Array.from(grouped.entries()).map(([compoundId, rows]) => ({
+        compoundId,
+        best: rows[0],
+        rankKey: Math.round(Number(rows[0]?.absolute_mass_error_ppm ?? Number.POSITIVE_INFINITY) * 1000000) / 1000000,
+      }));
+      bestRows.sort((left, right) => left.rankKey - right.rankKey || left.compoundId - right.compoundId);
+
+      let currentRank = 0;
+      let previousKey: number | null = null;
+      for (const row of bestRows) {
+        if (previousKey === null || row.rankKey !== previousKey) {
+          currentRank += 1;
+          previousKey = row.rankKey;
+        }
+        precursorMassRanks.set(row.compoundId, currentRank);
+      }
+    } catch (err: any) {
+      console.error("[ML] Error loading precursor matches for ML re-ranking:", err);
+    }
+  }
+
   const candidates = await findCandidateSpectraForMsMsSearch(db, {
     queryWindows: queryPeaks.map((peak) => ({
       queryIndex: peak.index,
@@ -449,16 +503,65 @@ export async function searchMsMsSpectraService(db: Kysely<DB>, rawInput: unknown
       return left.hmdbSpectrumId - right.hmdbSpectrumId;
     });
 
+  let processedRows = scoredRows.map((row, index) => {
+    const cosineRank = index + 1;
+    let mlProbability: number | undefined;
+
+    if (model) {
+      const bestAdduct = adductMatchesByCompoundId.get(row.compoundId);
+      const absoluteMassErrorPpm = bestAdduct ? Number(bestAdduct.absolute_mass_error_ppm) : null;
+      const precursorMassRank = precursorMassRanks.get(row.compoundId) ?? null;
+
+      const queryCoverage = row.matchedPeaks / queryPeaks.length;
+      const libraryCoverage = row.matchedPeaks / row.totalLibraryPeaks;
+      const balancedCoverage = row.totalLibraryPeaks > 0
+        ? row.matchedPeaks / Math.sqrt(queryPeaks.length * row.totalLibraryPeaks)
+        : 0;
+
+      const featureArray = [
+        row.cosineScore,
+        absoluteMassErrorPpm !== null ? absoluteMassErrorPpm : NaN,
+        row.matchedPeaks,
+        queryCoverage,
+        libraryCoverage,
+        balancedCoverage,
+        cosineRank,
+        precursorMassRank !== null ? precursorMassRank : NaN,
+      ];
+
+      mlProbability = predictProbability(featureArray, model);
+    }
+
+    return {
+      ...row,
+      mlProbability,
+    };
+  });
+
+  if (model && input.useMlRanking) {
+    processedRows.sort((left, right) => {
+      const probDiff = (right.mlProbability ?? 0) - (left.mlProbability ?? 0);
+      if (probDiff !== 0) return probDiff;
+      if (right.cosinePercent !== left.cosinePercent) return right.cosinePercent - left.cosinePercent;
+      return left.hmdbSpectrumId - right.hmdbSpectrumId;
+    });
+
+    processedRows = processedRows.map((row, index) => ({
+      ...row,
+      mlRank: index + 1,
+    }));
+  }
+
   return {
     queryPeaks,
-    rows: scoredRows.slice(pagination.offset, pagination.offset + pagination.limit),
+    rows: processedRows.slice(pagination.offset, pagination.offset + pagination.limit),
     pagination: buildPaginationMeta({
       page: pagination.page,
       limit: pagination.limit,
-      totalRows: scoredRows.length,
+      totalRows: processedRows.length,
     }),
     candidateLimit: MSMS_CANDIDATE_LIMIT,
-    scoredCandidates: scoredRows.length,
+    scoredCandidates: processedRows.length,
     prefilter,
   };
 }

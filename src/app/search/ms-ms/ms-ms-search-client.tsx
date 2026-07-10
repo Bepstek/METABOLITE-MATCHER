@@ -77,6 +77,8 @@ type MsMsSearchRow = {
   queryNorm: number;
   libraryNorm: number;
   matchedPeakPairs: MatchedPeakPair[];
+  mlProbability?: number;
+  mlRank?: number;
 };
 
 type MsMsSearchResponse = {
@@ -611,6 +613,7 @@ export function MsMsSearchClient() {
   const [precursorAdductIdsDraft, setPrecursorAdductIdsDraft] = useState<number[]>([]);
   const [adductOptions, setAdductOptions] = useState<AdductOption[]>([]);
   const [adductMetadataError, setAdductMetadataError] = useState<string | null>(null);
+  const [useMlRanking, setUseMlRanking] = useState(false);
 
   useEffect(() => {
     setPrecursorAdductIdsDraft([]);
@@ -720,6 +723,7 @@ export function MsMsSearchClient() {
         precursorAdductIds: polarityDraft === "both" ? [] : precursorAdductIdsDraft,
         sourceTermId: sourceTermIdDraft === "any" ? undefined : Number(sourceTermIdDraft),
         minMatchedPeaks: minMatchedPeaksDraft,
+        useMlRanking,
         page: nextPage,
         limit: limitDraft,
       });
@@ -760,6 +764,7 @@ export function MsMsSearchClient() {
     setGraphMinIntensity(DEFAULT_GRAPH_MIN_INTENSITY);
     setShowPrecursorFilter(false);
     clearPrecursorFilter();
+    setUseMlRanking(false);
     setResult(null);
     setSelectedResult(null);
     setSelectedSpectrumDetail(null);
@@ -1031,6 +1036,19 @@ export function MsMsSearchClient() {
                         />
                       </div>
 
+                      <label className="flex items-center gap-2 mt-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={useMlRanking}
+                          disabled={!precursorMzDraft.trim()}
+                          onChange={(event) => setUseMlRanking(event.target.checked)}
+                          className="h-4 w-4 rounded border-slate-300"
+                        />
+                        <span className={!precursorMzDraft.trim() ? "text-slate-400" : ""}>
+                          Use ML Re-ranking (Random Forest)
+                        </span>
+                      </label>
+
                       <div className="grid grid-cols-[1fr_120px] gap-3">
                         <div className="space-y-1">
                           <label className="text-sm font-semibold text-slate-950">Precursor tolerance ±</label>
@@ -1238,89 +1256,106 @@ export function MsMsSearchClient() {
             ) : null}
 
             <div className="overflow-x-auto rounded-md border lg:overflow-x-visible">
-              <Table className="min-w-210 table-fixed lg:min-w-0 lg:w-full">
-                <TableHeader className="bg-cyan-950/5">
-                  <TableRow>
-                    <TableHead className="w-74 lg:w-[34%]">Compound</TableHead>
-                    <TableHead className="w-30 lg:w-[14%]">Spectrum</TableHead>
-                    <TableHead className="w-24 lg:w-[11%]">Type</TableHead>
-                    <TableHead className="w-31 lg:w-[15%]">Instrument</TableHead>
-                    <TableHead className="w-22 lg:w-[9%]">Collision</TableHead>
-                    <TableHead className="w-24 lg:w-[8%]">Matched</TableHead>
-                    <TableHead className="w-25 lg:w-[9%]">Similarity (%)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading && result.rows.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-slate-500">
-                        Loading results...
-                      </TableCell>
-                    </TableRow>
-                  ) : result.rows.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-slate-500">
-                        No MS/MS matches found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    result.rows.map((row) => {
-                      const selected = selectedResult?.hmdbSpectrumId === row.hmdbSpectrumId;
-                      return (
-                        <TableRow
-                          key={`${row.spectrumId}-${row.hmdbSpectrumId}`}
-                          className={selected ? "cursor-pointer bg-cyan-950/5" : "cursor-pointer"}
-                          onClick={() => setSelectedResult(row)}
-                        >
-                          <TableCell className="align-top">
-                            <div className="min-w-0 space-y-1">
-                              <Link
-                                href={`/compounds/${row.accession}`}
-                                className="block truncate font-mono text-xs font-medium text-cyan-800 underline-offset-4 hover:underline"
-                                onClick={(event) => event.stopPropagation()}
-                                title={row.accession}
-                              >
-                                {row.accession}
-                              </Link>
-                              <div className="truncate text-sm font-medium text-slate-900" title={row.name}>
-                                {row.name}
-                              </div>
-                              <div className="truncate text-xs text-slate-600">
-                                <ChemicalFormula formula={row.chemicalFormula} />
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="align-top font-mono text-xs">
-                            <Link
-                              href={`/spectra/ms-ms/${row.hmdbSpectrumId}`}
-                              className="text-cyan-800 underline-offset-4 hover:underline"
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              {row.hmdbSpectrumId}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="align-top text-xs">
-                            <div>{row.spectrumType}</div>
-                            <div className="text-slate-500">{formatNullableText(row.polarity)}</div>
-                          </TableCell>
-                          <TableCell className="truncate align-top text-xs" title={row.instrumentType ?? undefined}>
-                            {row.instrumentType ?? "—"}
-                          </TableCell>
-                          <TableCell className="align-top font-mono text-xs tabular-nums">
-                            {formatNullableNumber(row.collisionEnergyVoltage)}
-                          </TableCell>
-                          <TableCell className="align-top font-mono text-xs tabular-nums">
-                            {row.matchedPeaks}/{row.totalQueryPeaks}
-                          </TableCell>
-                          <TableCell className="align-top font-mono text-sm font-semibold tabular-nums text-cyan-900">
-                            {formatPercent(row.cosinePercent)}
+              {(() => {
+                const hasMlResults = result.rows.some((row) => row.mlProbability !== undefined);
+                return (
+                  <Table className="min-w-210 table-fixed lg:min-w-0 lg:w-full">
+                    <TableHeader className="bg-cyan-950/5">
+                      <TableRow>
+                        {hasMlResults && <TableHead className="w-20 lg:w-[6%]">ML Rank</TableHead>}
+                        <TableHead className="w-74 lg:w-[34%]">Compound</TableHead>
+                        <TableHead className="w-30 lg:w-[14%]">Spectrum</TableHead>
+                        <TableHead className="w-24 lg:w-[11%]">Type</TableHead>
+                        <TableHead className="w-31 lg:w-[15%]">Instrument</TableHead>
+                        <TableHead className="w-22 lg:w-[9%]">Collision</TableHead>
+                        <TableHead className="w-24 lg:w-[8%]">Matched</TableHead>
+                        <TableHead className="w-25 lg:w-[9%]">Similarity (%)</TableHead>
+                        {hasMlResults && <TableHead className="w-28 lg:w-[10%]">ML Prob</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading && result.rows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={hasMlResults ? 9 : 7} className="h-24 text-center text-slate-500">
+                            Loading results...
                           </TableCell>
                         </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
+                      ) : result.rows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={hasMlResults ? 9 : 7} className="h-24 text-center text-slate-500">
+                            No MS/MS matches found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        result.rows.map((row) => {
+                          const selected = selectedResult?.hmdbSpectrumId === row.hmdbSpectrumId;
+                          return (
+                            <TableRow
+                              key={`${row.spectrumId}-${row.hmdbSpectrumId}`}
+                              className={selected ? "cursor-pointer bg-cyan-950/5" : "cursor-pointer"}
+                              onClick={() => setSelectedResult(row)}
+                            >
+                              {hasMlResults && (
+                                <TableCell className="align-top font-mono text-xs tabular-nums text-slate-600">
+                                  {row.mlRank !== undefined ? `#${row.mlRank}` : "—"}
+                                </TableCell>
+                              )}
+                              <TableCell className="align-top">
+                                <div className="min-w-0 space-y-1">
+                                  <Link
+                                    href={`/compounds/${row.accession}`}
+                                    className="block truncate font-mono text-xs font-medium text-cyan-800 underline-offset-4 hover:underline"
+                                    onClick={(event) => event.stopPropagation()}
+                                    title={row.accession}
+                                  >
+                                    {row.accession}
+                                  </Link>
+                                  <div className="truncate text-sm font-medium text-slate-900" title={row.name}>
+                                    {row.name}
+                                  </div>
+                                  <div className="truncate text-xs text-slate-600">
+                                    <ChemicalFormula formula={row.chemicalFormula} />
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="align-top font-mono text-xs">
+                                <Link
+                                  href={`/spectra/ms-ms/${row.hmdbSpectrumId}`}
+                                  className="text-cyan-800 underline-offset-4 hover:underline"
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  {row.hmdbSpectrumId}
+                                </Link>
+                              </TableCell>
+                              <TableCell className="align-top text-xs">
+                                <div>{row.spectrumType}</div>
+                                <div className="text-slate-500">{formatNullableText(row.polarity)}</div>
+                              </TableCell>
+                              <TableCell className="truncate align-top text-xs" title={row.instrumentType ?? undefined}>
+                                {row.instrumentType ?? "—"}
+                              </TableCell>
+                              <TableCell className="align-top font-mono text-xs tabular-nums">
+                                {formatNullableNumber(row.collisionEnergyVoltage)}
+                              </TableCell>
+                              <TableCell className="align-top font-mono text-xs tabular-nums">
+                                {row.matchedPeaks}/{row.totalQueryPeaks}
+                              </TableCell>
+                              <TableCell className="align-top font-mono text-sm font-semibold tabular-nums text-cyan-900">
+                                {formatPercent(row.cosinePercent)}
+                              </TableCell>
+                              {hasMlResults && (
+                                <TableCell className="align-top font-mono text-sm font-semibold tabular-nums text-blue-900">
+                                  {row.mlProbability !== undefined ? `${(row.mlProbability * 100).toFixed(2)}%` : "—"}
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                );
+              })()}
             </div>
 
             <PaginationControls
