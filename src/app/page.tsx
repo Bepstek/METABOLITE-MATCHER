@@ -78,13 +78,32 @@ const quickLinks = [
 ];
 
 const upcomingFeatures = [
-  "Make related spectra HMDB ID cells open the local MS/MS spectrum detail page",
-  "Primitive fragment peak lookup page",
-  "Sortable LC-MS/MS search result columns after cosine scoring is validated",
-  "Research/ML API for deeper cosine internals, all matched pairs, candidate statistics, and parameter sweeps",
-  "Parent ion mass/adduct-aware filtering after precursor metadata design is finalized",
-  "Frontend user guide expansion once the search workflows are stable",
+  {
+    text: "Make related spectra HMDB ID cells open the local MS/MS spectrum detail page",
+    done: true,
+  },
+  {
+    text: "Primitive fragment peak lookup page",
+    done: false,
+  },
+  {
+    text: "Sortable LC-MS/MS search result columns after cosine scoring is validated",
+    done: false,
+  },
+  {
+    text: "Research/ML API for deeper cosine internals, all matched pairs, candidate statistics, and parameter sweeps",
+    done: true,
+  },
+  {
+    text: "Parent ion mass/adduct-aware filtering after precursor metadata design is finalized",
+    done: false,
+  },
+  {
+    text: "Frontend user guide expansion once the search workflows are stable",
+    done: false,
+  },
 ];
+
 
 export default function HomePage() {
   return (
@@ -174,12 +193,222 @@ export default function HomePage() {
             <h2 className="text-lg font-semibold text-slate-950">Coming next</h2>
             <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
               {upcomingFeatures.map((feature) => (
-                <li key={feature} className="flex gap-2">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-700" />
-                  <span>{feature}</span>
+                <li key={feature.text} className="flex items-start gap-2.5">
+                  {feature.done ? (
+                    <svg
+                      className="mt-1 h-4 w-4 shrink-0 text-emerald-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={3}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-700" />
+                  )}
+                  <span className={feature.done ? "text-slate-500 line-through decoration-slate-300" : ""}>
+                    {feature.text}
+                  </span>
                 </li>
               ))}
             </ul>
+          </SectionPanel>
+        </section>
+
+        <section className="mb-8">
+          <SectionPanel className="p-6">
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700">
+                  Model Evaluation
+                </p>
+                <h2 className="text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">
+                  Machine Learning Algorithm Comparison
+                </h2>
+                <p className="text-sm leading-6 text-slate-600">
+                  To determine the most robust approach for matching and aligning candidate spectra, we evaluated traditional baselines alongside three machine learning classifiers. Models were trained using query-level 5-fold cross-validation (GroupKFold) over verified positive identifications from <strong>DSTB Saliva samples</strong>.
+                </p>
+
+                <div className="overflow-hidden rounded-lg border border-cyan-900/10 bg-white">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
+                      <tr>
+                        <th className="px-4 py-3">Algorithm</th>
+                        <th className="px-4 py-3 text-right">MRR</th>
+                        <th className="px-4 py-3 text-right">Hit@1</th>
+                        <th className="px-4 py-3 text-right">Hit@5</th>
+                        <th className="px-4 py-3 text-right">Hit@10</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-mono text-xs">
+                      <tr>
+                        <td className="px-4 py-2.5 font-sans font-medium text-slate-600">Cosine Similarity (Baseline)</td>
+                        <td className="px-4 py-2.5 text-right">0.6008</td>
+                        <td className="px-4 py-2.5 text-right">47.73%</td>
+                        <td className="px-4 py-2.5 text-right">72.73%</td>
+                        <td className="px-4 py-2.5 text-right">84.09%</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-2.5 font-sans font-medium text-slate-600">Precursor Mass Error (Baseline)</td>
+                        <td className="px-4 py-2.5 text-right">0.7746</td>
+                        <td className="px-4 py-2.5 text-right">70.45%</td>
+                        <td className="px-4 py-2.5 text-right">84.09%</td>
+                        <td className="px-4 py-2.5 text-right">88.64%</td>
+                      </tr>
+                      <tr className="bg-cyan-50/50 font-semibold text-cyan-950">
+                        <td className="px-4 py-2.5 font-sans font-bold text-cyan-800">Random Forest Classifier</td>
+                        <td className="px-4 py-2.5 text-right">0.7930</td>
+                        <td className="px-4 py-2.5 text-right">72.73%</td>
+                        <td className="px-4 py-2.5 text-right">84.09%</td>
+                        <td className="px-4 py-2.5 text-right">88.64%</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-2.5 font-sans font-medium text-slate-600">Gradient Boosting Classifier</td>
+                        <td className="px-4 py-2.5 text-right">0.7526</td>
+                        <td className="px-4 py-2.5 text-right">63.64%</td>
+                        <td className="px-4 py-2.5 text-right">88.64%</td>
+                        <td className="px-4 py-2.5 text-right">90.91%</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-2.5 font-sans font-medium text-slate-600">Support Vector Machine (SVM)</td>
+                        <td className="px-4 py-2.5 text-right">0.7701</td>
+                        <td className="px-4 py-2.5 text-right">65.91%</td>
+                        <td className="px-4 py-2.5 text-right">88.64%</td>
+                        <td className="px-4 py-2.5 text-right">95.45%</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <p className="text-xs leading-relaxed text-slate-500">
+                  * <strong>Key findings:</strong> Random Forest achieved the highest Mean Reciprocal Rank (MRR = 0.7930) and Hit@1 accuracy (72.73%). SVM achieved the highest Hit@10 accuracy (95.45%). All models significantly outperformed traditional cosine alignment.
+                </p>
+              </div>
+
+              <div className="w-full rounded-lg border border-slate-200 bg-white p-4">
+                <h3 className="text-sm font-semibold text-slate-800 mb-4 text-center">
+                  Accuracy Comparison (Baselines vs. ML Models)
+                </h3>
+                <div className="relative w-full overflow-x-auto">
+                  <svg viewBox="0 0 650 350" className="w-full min-w-[500px] h-auto">
+                    {/* Y-axis Grid Lines */}
+                    {[0, 0.2, 0.4, 0.6, 0.8, 1.0].map((val) => {
+                      const y = 60 + 230 - val * 230;
+                      return (
+                        <g key={val}>
+                          <line
+                            x1="50"
+                            y1={y}
+                            x2="630"
+                            y2={y}
+                            stroke="#e2e8f0"
+                            strokeWidth="1"
+                            strokeDasharray={val === 0 ? "0" : "4 4"}
+                          />
+                          <text
+                            x="40"
+                            y={y + 4}
+                            textAnchor="end"
+                            className="fill-slate-400 font-mono text-[10px]"
+                          >
+                            {val.toFixed(1)}
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                    {/* Bars */}
+                    {[
+                      { name: "Cosine", mrr: 0.6008, hit1: 0.4773, hit5: 0.7273, hit10: 0.8409 },
+                      { name: "Precursor Mass", mrr: 0.7746, hit1: 0.7045, hit5: 0.8409, hit10: 0.8864 },
+                      { name: "Random Forest", mrr: 0.7930, hit1: 0.7273, hit5: 0.8409, hit10: 0.8864 },
+                      { name: "Gradient Boosting", mrr: 0.7526, hit1: 0.6364, hit5: 0.8864, hit10: 0.9091 },
+                      { name: "SVM", mrr: 0.7701, hit1: 0.6591, hit5: 0.8864, hit10: 0.9545 },
+                    ].map((model, i) => {
+                      const groupX = 50 + i * 116;
+                      const barWidth = 12;
+                      const gap = 2;
+                      const metrics = [
+                        { val: model.mrr, color: "#94a3b8", label: "MRR" },
+                        { val: model.hit1, color: "#67e8f9", label: "Hit@1" },
+                        { val: model.hit5, color: "#06b6d4", label: "Hit@5" },
+                        { val: model.hit10, color: "#0f766e", label: "Hit@10" },
+                      ];
+
+                      return (
+                        <g key={model.name}>
+                          {/* X-axis Label */}
+                          <text
+                            x={groupX + 58}
+                            y="315"
+                            textAnchor="middle"
+                            className="fill-slate-600 font-sans text-[10px] font-semibold"
+                          >
+                            {model.name}
+                          </text>
+
+                          {/* Group Bars */}
+                          {metrics.map((m, j) => {
+                            const barX = groupX + 31 + j * (barWidth + gap);
+                            const barHeight = m.val * 230;
+                            const barY = 60 + 230 - barHeight;
+
+                            return (
+                              <g key={m.label} className="group/bar relative">
+                                <rect
+                                  x={barX}
+                                  y={barY}
+                                  width={barWidth}
+                                  height={barHeight}
+                                  fill={m.color}
+                                  rx="1.5"
+                                  className="transition-all duration-300 hover:brightness-95"
+                                />
+                                {/* Value Label rotated vertically on top of bar */}
+                                <text
+                                  x={barX + barWidth / 2 + 1}
+                                  y={barY - 6}
+                                  textAnchor="start"
+                                  transform={`rotate(-90, ${barX + barWidth / 2 + 1}, ${barY - 6})`}
+                                  className="fill-slate-600 font-mono text-[9px] font-bold"
+                                >
+                                  {m.val.toFixed(2)}
+                                </text>
+                              </g>
+                            );
+                          })}
+                        </g>
+                      );
+                    })}
+
+                    {/* Bottom Border Line */}
+                    <line x1="50" y1="290" x2="630" y2="290" stroke="#cbd5e1" strokeWidth="1.5" />
+                  </svg>
+
+                  {/* Legend */}
+                  <div className="flex justify-center gap-6 mt-4 flex-wrap text-xs text-slate-600 font-semibold">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded bg-[#94a3b8]" />
+                      <span>MRR</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded bg-[#67e8f9]" />
+                      <span>Hit@1</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded bg-[#06b6d4]" />
+                      <span>Hit@5</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded bg-[#0f766e]" />
+                      <span>Hit@10</span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
           </SectionPanel>
         </section>
 

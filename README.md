@@ -279,6 +279,47 @@ http://localhost:3000
 
 ---
 
+## Run Machine Learning Pipeline
+
+The project includes a complete machine learning pipeline to prepare features, evaluate baselines, export training datasets, and train candidate-ranking models.
+
+### Step 1: Prepare ML Queries
+Align verified compound matches from client spreadsheets with the experimental fragmentation lists:
+```bash
+python scripts/prepare-ml-queries.py
+```
+This generates `datasets/parsed/dstb_ml_queries.json`.
+
+### Step 2: Run Baseline Evaluation
+Evaluate Cosine Similarity vs. Precursor Mass Error directly against the database:
+```bash
+npx tsx scripts/run-ml-evaluation.ts
+```
+This outputs a baseline evaluation report to `docs/ml/candidate-ranking-evaluation.md`.
+
+### Step 3: Export Training Data Features
+Generate the full candidate rows containing ranking features (cosine score, ppm error, balanced coverage, peak counts, etc.) labeled for ML:
+```bash
+npx tsx scripts/export-training-data.ts
+```
+This generates `datasets/parsed/ml_training_dataset.json`.
+
+### Step 4: Train Machine Learning Classifiers
+Standardize features, train classifiers (Random Forest, Gradient Boosting, SVM) using out-of-fold GroupKFold cross-validation, and rank prediction outputs:
+```bash
+python scripts/train-ml-models.py
+```
+This generates the comparison report in `docs/ml/ml-model-comparison.md`.
+
+### Step 5: Plot Comparison Visualizations
+Generate a bar chart comparing Mean Reciprocal Rank (MRR) and Hit@K accuracies across models:
+```bash
+python scripts/plot_ml_comparison.py
+```
+This saves the chart to `docs/ml_model_comparison.png`.
+
+---
+
 ## Frontend Pages
 
 Main navigation starts at:
@@ -619,6 +660,13 @@ npm run db:test:search
 
 npm run dev
 npm run build
+
+# ML Pipeline Scripts
+python scripts/prepare-ml-queries.py
+npx tsx scripts/run-ml-evaluation.ts
+npx tsx scripts/export-training-data.ts
+python scripts/train-ml-models.py
+python scripts/plot_ml_comparison.py
 ```
 
 ---
