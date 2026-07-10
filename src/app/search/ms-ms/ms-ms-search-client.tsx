@@ -584,6 +584,34 @@ function MirrorSpectrumGraph({
   );
 }
 
+const TOUR_STEPS = [
+  {
+    targetId: "msms-peak-list",
+    title: "MS/MS Peak List",
+    description: "Paste your raw fragment peaks here. The format should be one peak per line containing m/z and intensity (separated by space, tab, or comma). Only the first two numeric columns are used."
+  },
+  {
+    targetId: "tour-tolerance",
+    title: "Fragment Tolerance",
+    description: "Specify the tolerance window (in Da or ppm) used to match your query peaks against database library peaks."
+  },
+  {
+    targetId: "tour-spectrum-kind",
+    title: "Spectrum Kind",
+    description: "Filter library candidates by experimental spectra (from actual lab samples), predicted spectra (theoretically modeled), or search against both."
+  },
+  {
+    targetId: "tour-precursor-toggle",
+    title: "Precursor Filter Toggle",
+    description: "Expand optional precursor m/z prefiltering. Supplying precursor m/z narrows candidates significantly using computed adduct masses."
+  },
+  {
+    targetId: "tour-ml-ranking",
+    title: "ML Re-ranking Option",
+    description: "Toggle our query-level trained Random Forest model. It combines cosine similarity, ppm mass error, and fragment coverage to place the correct compound match at rank #1."
+  }
+];
+
 export function MsMsSearchClient() {
   const [peakListDraft, setPeakListDraft] = useState("");
   const [toleranceDraft, setToleranceDraft] = useState("0.1");
@@ -614,6 +642,29 @@ export function MsMsSearchClient() {
   const [adductOptions, setAdductOptions] = useState<AdductOption[]>([]);
   const [adductMetadataError, setAdductMetadataError] = useState<string | null>(null);
   const [useMlRanking, setUseMlRanking] = useState(false);
+  const [tourStep, setTourStep] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (tourStep === 4) {
+      setShowPrecursorFilter(true);
+    }
+  }, [tourStep]);
+
+  useEffect(() => {
+    if (tourStep === null) return;
+
+    const step = TOUR_STEPS[tourStep];
+    const element = document.getElementById(step.targetId);
+    if (!element) return;
+
+    // Apply high visibility styles
+    element.classList.add("relative", "z-[70]", "ring-4", "ring-cyan-500", "bg-white", "shadow-2xl", "p-1.5", "rounded-md");
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    return () => {
+      element.classList.remove("relative", "z-[70]", "ring-4", "ring-cyan-500", "bg-white", "shadow-2xl", "p-1.5", "rounded-md");
+    };
+  }, [tourStep]);
 
   useEffect(() => {
     setPrecursorAdductIdsDraft([]);
@@ -793,6 +844,46 @@ export function MsMsSearchClient() {
     clearPrecursorFilter();
   }
 
+  async function runMlExample() {
+    setTourStep(null);
+    setPeakListDraft("90.05 10.0\n132.08 100.0\n115.05 30.0");
+    setPrecursorMzDraft("132.0768");
+    setPrecursorToleranceDraft("5");
+    setPrecursorToleranceUnitDraft("ppm");
+    setUseMlRanking(true);
+    setShowPrecursorFilter(true);
+
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const data = await postJson<MsMsSearchResponse>("/api/search/ms-ms", {
+        peakList: "90.05 10.0\n132.08 100.0\n115.05 30.0",
+        tolerance: 0.1,
+        toleranceUnit: "da",
+        spectrumKind: "both",
+        polarity: "positive",
+        precursorMz: 132.0768,
+        precursorTolerance: 5,
+        precursorToleranceUnit: "ppm",
+        precursorAdductIds: [],
+        sourceTermId: undefined,
+        minMatchedPeaks: 1,
+        useMlRanking: true,
+        page: 1,
+        limit: 10,
+      });
+
+      setResult(data);
+      setPage(data.pagination.page);
+      setPageInput(String(data.pagination.page));
+    } catch (error) {
+      setResult(null);
+      setErrorMessage(error instanceof Error ? error.message : "Search failed");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   function handleLimitChange(value: string) {
     const nextLimit = Number(value);
     if (!isLimitOption(nextLimit)) return;
@@ -897,7 +988,7 @@ export function MsMsSearchClient() {
             </div>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-[1fr_120px] gap-3">
+              <div id="tour-tolerance" className="grid grid-cols-[1fr_120px] gap-3 transition-all duration-300">
                 <div className="space-y-1">
                   <label className="text-sm font-semibold text-slate-950">Fragment tolerance ±</label>
                   <Input
@@ -923,7 +1014,7 @@ export function MsMsSearchClient() {
                 </div>
               </div>
 
-              <div className="space-y-1">
+              <div id="tour-spectrum-kind" className="space-y-1 transition-all duration-300">
                 <label className="text-sm font-semibold text-slate-950">Spectrum kind</label>
                 <Select
                   value={spectrumKindDraft}
@@ -1005,7 +1096,13 @@ export function MsMsSearchClient() {
             </div>
 
             <div className="border-t border-cyan-900/10 pt-4 lg:col-span-2">
-              <Button type="button" variant="outline" onClick={() => setShowPrecursorFilter((current) => !current)}>
+              <Button
+                id="tour-precursor-toggle"
+                type="button"
+                variant="outline"
+                onClick={() => setShowPrecursorFilter((current) => !current)}
+                className="transition-all duration-300"
+              >
                 {showPrecursorFilter ? "Hide precursor filter" : "Show precursor filter"}
               </Button>
 
@@ -1036,18 +1133,20 @@ export function MsMsSearchClient() {
                         />
                       </div>
 
-                      <label className="flex items-center gap-2 mt-2 text-sm text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={useMlRanking}
-                          disabled={!precursorMzDraft.trim()}
-                          onChange={(event) => setUseMlRanking(event.target.checked)}
-                          className="h-4 w-4 rounded border-slate-300"
-                        />
-                        <span className={!precursorMzDraft.trim() ? "text-slate-400" : ""}>
-                          Use ML Re-ranking (Random Forest)
-                        </span>
-                      </label>
+                      <div id="tour-ml-ranking" className="transition-all duration-300">
+                        <label className="flex items-center gap-2 mt-2 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={useMlRanking}
+                            disabled={!precursorMzDraft.trim()}
+                            onChange={(event) => setUseMlRanking(event.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300"
+                          />
+                          <span className={!precursorMzDraft.trim() ? "text-slate-400" : ""}>
+                            Use ML Re-ranking (Random Forest)
+                          </span>
+                        </label>
+                      </div>
 
                       <div className="grid grid-cols-[1fr_120px] gap-3">
                         <div className="space-y-1">
@@ -1375,6 +1474,80 @@ export function MsMsSearchClient() {
           <SectionPanel className="text-sm text-slate-600">Enter an MS/MS peak list and click Search.</SectionPanel>
         )}
       </div>
+
+      {/* Semi-transparent blue backdrop overlay for tour */}
+      {tourStep !== null && (
+        <div
+          className="fixed inset-0 bg-blue-900/40 z-[60] backdrop-blur-[1px] transition-opacity duration-300"
+          onClick={() => setTourStep(null)}
+        />
+      )}
+
+      {/* Tour dialog tooltip card */}
+      {tourStep !== null && (
+        <div className="fixed bottom-24 right-6 w-96 rounded-xl border border-cyan-800/10 bg-white p-5 shadow-2xl z-[70] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-cyan-700">
+              Guided Tour · Step {tourStep + 1} of {TOUR_STEPS.length}
+            </span>
+            <button
+              onClick={() => setTourStep(null)}
+              className="text-slate-400 hover:text-slate-600 text-xs font-semibold"
+            >
+              Skip Tour
+            </button>
+          </div>
+          <h4 className="text-base font-semibold text-slate-900 mb-2">
+            {TOUR_STEPS[tourStep].title}
+          </h4>
+          <p className="text-sm text-slate-600 leading-relaxed mb-4">
+            {TOUR_STEPS[tourStep].description}
+          </p>
+          <div className="flex justify-between items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={tourStep === 0}
+              onClick={() => setTourStep((prev) => (prev !== null ? prev - 1 : null))}
+            >
+              Previous
+            </Button>
+            <div className="flex gap-2">
+              {tourStep === TOUR_STEPS.length - 1 && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                  onClick={runMlExample}
+                >
+                  Run Example
+                </Button>
+              )}
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (tourStep === TOUR_STEPS.length - 1) {
+                    setTourStep(null);
+                  } else {
+                    setTourStep((prev) => (prev !== null ? prev + 1 : null));
+                  }
+                }}
+              >
+                {tourStep === TOUR_STEPS.length - 1 ? "Finish" : "Next"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating help / restart tour button */}
+      <button
+        onClick={() => setTourStep(0)}
+        title="Start Guided Tour"
+        className="fixed bottom-6 right-6 h-12 w-12 rounded-full bg-cyan-700 hover:bg-cyan-800 text-white shadow-lg flex items-center justify-center font-bold text-lg transition-transform hover:scale-105 active:scale-95 z-50 cursor-pointer"
+      >
+        ?
+      </button>
     </main>
   );
 }

@@ -1,6 +1,37 @@
+"use client";
+
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import { SectionPanel } from "../components/section-panel";
 import { Button } from "../components/ui/button";
+
+const TOUR_STEPS = [
+  {
+    targetId: "tour-header",
+    title: "HMDB Search Prototype",
+    description: "Welcome! This prototype is designed for metabolomics compound identification and machine learning candidate-ranking validation."
+  },
+  {
+    targetId: "tour-compounds-link",
+    title: "Compound Search",
+    description: "Query metabolites by chemical name (e.g. Creatine), view molecular weights, synonyms, chemical formulas, and source hierarchy mappings."
+  },
+  {
+    targetId: "tour-adduct-link",
+    title: "LC-MS / Adduct m/z Search",
+    description: "Match observed precursor m/z values against computed adduct weights (like [M+H]+) under positive/negative polarities."
+  },
+  {
+    targetId: "tour-msms-link",
+    title: "LC-MS/MS Spectral Search",
+    description: "Paste raw fragment peak lists to search library spectra, re-rank matching candidates using our Random Forest ML model, and view interactive mirror comparison charts."
+  },
+  {
+    targetId: "tour-ml-comparison",
+    title: "ML Benchmarking & Accuracy",
+    description: "Compare the performance of traditional search methods against our machine learning classifiers (trained on DSTB Saliva samples)."
+  }
+];
 
 const quickLinks = [
   {
@@ -106,10 +137,27 @@ const upcomingFeatures = [
 
 
 export default function HomePage() {
+  const [tourStep, setTourStep] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (tourStep === null) return;
+
+    const step = TOUR_STEPS[tourStep];
+    const element = document.getElementById(step.targetId);
+    if (!element) return;
+
+    element.classList.add("relative", "z-[70]", "ring-4", "ring-cyan-500", "bg-white", "shadow-2xl", "p-2", "rounded-xl");
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    return () => {
+      element.classList.remove("relative", "z-[70]", "ring-4", "ring-cyan-500", "bg-white", "shadow-2xl", "p-2", "rounded-xl");
+    };
+  }, [tourStep]);
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,116,144,0.12),transparent_32%),linear-gradient(to_bottom,#f8fafc,#eef7f8)]">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-8">
-        <header className="flex flex-col gap-4 border-b border-cyan-900/10 pb-6 sm:flex-row sm:items-center sm:justify-between">
+        <header id="tour-header" className="flex flex-col gap-4 border-b border-cyan-900/10 pb-6 sm:flex-row sm:items-center sm:justify-between transition-all duration-300">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700">
               HMDB-like Search Engine
@@ -142,13 +190,20 @@ export default function HomePage() {
         </header>
 
         <section className="grid gap-4 py-8 md:grid-cols-2 xl:grid-cols-3">
-          {quickLinks.map((link) => (
-            <SectionPanel
-              key={link.href}
-              variant="glass"
-              className="flex min-h-52 flex-col justify-between p-5"
-            >
-              <div>
+          {quickLinks.map((link) => {
+            let tourId: string | undefined;
+            if (link.href === "/search/compounds") tourId = "tour-compounds-link";
+            if (link.href === "/search/adduct-mz") tourId = "tour-adduct-link";
+            if (link.href === "/search/ms-ms") tourId = "tour-msms-link";
+
+            return (
+              <SectionPanel
+                key={link.href}
+                id={tourId}
+                variant="glass"
+                className="flex min-h-52 flex-col justify-between p-5 transition-all duration-300"
+              >
+                <div>
                 <h2 className="text-lg font-semibold text-slate-950">{link.title}</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{link.description}</p>
               </div>
@@ -160,8 +215,9 @@ export default function HomePage() {
               >
                 <Link href={link.href}>{link.actionLabel}</Link>
               </Button>
-            </SectionPanel>
-          ))}
+              </SectionPanel>
+            );
+          })}
         </section>
 
         <section className="grid gap-4 pb-8 lg:grid-cols-[1.25fr_0.75fr]">
@@ -230,7 +286,7 @@ export default function HomePage() {
                   To determine the most robust approach for matching and aligning candidate spectra, we evaluated traditional baselines alongside three machine learning classifiers. Models were trained using query-level 5-fold cross-validation (GroupKFold) over verified positive identifications from <strong>DSTB Saliva samples</strong>.
                 </p>
 
-                <div className="overflow-hidden rounded-lg border border-cyan-900/10 bg-white">
+                <div id="tour-ml-comparison" className="overflow-hidden rounded-lg border border-cyan-900/10 bg-white transition-all duration-300">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
                       <tr>
@@ -416,6 +472,68 @@ export default function HomePage() {
           Prototype navigation page for backend/API/UI testing. Dataset files and search behavior are still evolving.
         </footer>
       </div>
+
+      {/* Semi-transparent blue backdrop overlay for tour */}
+      {tourStep !== null && (
+        <div
+          className="fixed inset-0 bg-blue-900/40 z-[60] backdrop-blur-[1px] transition-opacity duration-300"
+          onClick={() => setTourStep(null)}
+        />
+      )}
+
+      {/* Tour dialog tooltip card */}
+      {tourStep !== null && (
+        <div className="fixed bottom-24 right-6 w-96 rounded-xl border border-cyan-800/10 bg-white p-5 shadow-2xl z-[70] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-cyan-700">
+              Guided Tour · Step {tourStep + 1} of {TOUR_STEPS.length}
+            </span>
+            <button
+              onClick={() => setTourStep(null)}
+              className="text-slate-400 hover:text-slate-600 text-xs font-semibold"
+            >
+              Skip Tour
+            </button>
+          </div>
+          <h4 className="text-base font-semibold text-slate-900 mb-2">
+            {TOUR_STEPS[tourStep].title}
+          </h4>
+          <p className="text-sm text-slate-600 leading-relaxed mb-4">
+            {TOUR_STEPS[tourStep].description}
+          </p>
+          <div className="flex justify-between items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={tourStep === 0}
+              onClick={() => setTourStep((prev) => (prev !== null ? prev - 1 : null))}
+            >
+              Previous
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                if (tourStep === TOUR_STEPS.length - 1) {
+                  setTourStep(null);
+                } else {
+                  setTourStep((prev) => (prev !== null ? prev + 1 : null));
+                }
+              }}
+            >
+              {tourStep === TOUR_STEPS.length - 1 ? "Finish" : "Next"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating help / restart tour button */}
+      <button
+        onClick={() => setTourStep(0)}
+        title="Start Guided Tour"
+        className="fixed bottom-6 right-6 h-12 w-12 rounded-full bg-cyan-700 hover:bg-cyan-800 text-white shadow-lg flex items-center justify-center font-bold text-lg transition-transform hover:scale-105 active:scale-95 z-50 cursor-pointer"
+      >
+        ?
+      </button>
     </main>
   );
 }
