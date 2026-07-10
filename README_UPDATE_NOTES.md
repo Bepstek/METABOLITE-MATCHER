@@ -15,4 +15,4 @@ Major README changes:
 
 Home page note:
 
-If the previous home page patch was applied, no additional home page update is needed. The README now matches the current home page direction with `/search/ms-ms` included as a primary search workflow.
+If the previous home page patch was applied, no additional home page update is needed. The README now matches the current home page direction with `/search/ms-ms` included as a primary search workflow.s
