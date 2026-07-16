@@ -1321,13 +1321,63 @@ export function MsMsSearchClient() {
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">Search Results</h2>
                 <p className="text-sm text-slate-600">
-                  Ranked by cosine similarity, then matched peaks. Click a row to update the comparison graph.
+                  Click a row or chart bar to select a candidate and update the comparison graph.
                 </p>
               </div>
               <div className="text-xs text-slate-500">
                 Candidate cap {result.candidateLimit} · scored {result.scoredCandidates}
               </div>
             </div>
+
+            {/* ML Probability Bar Chart */}
+            {(() => {
+              const hasMlResults = result.rows.some((row) => row.mlProbability !== undefined);
+              if (!hasMlResults) return null;
+
+              const topRowsForChart = result.rows.slice(0, 5);
+              return (
+                <div className="mb-6 rounded-lg border border-blue-900/10 bg-blue-50/20 p-4 animate-in fade-in duration-300">
+                  <h3 className="text-sm font-semibold text-blue-950 mb-3 flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                    Top Candidate ML Probabilities (Random Forest Classifier)
+                  </h3>
+                  <div className="space-y-3">
+                    {topRowsForChart.map((row) => {
+                      const prob = row.mlProbability ?? 0;
+                      const pct = prob * 100;
+                      const isSelected = selectedResult?.hmdbSpectrumId === row.hmdbSpectrumId;
+
+                      return (
+                        <div
+                          key={row.hmdbSpectrumId}
+                          onClick={() => setSelectedResult(row)}
+                          className={`group cursor-pointer rounded-md p-2 transition-all hover:bg-blue-50/50 ${
+                            isSelected ? "bg-blue-50/80 ring-1 ring-blue-300" : ""
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="font-semibold text-slate-800 truncate max-w-[70%]">
+                              {row.name} <span className="font-mono text-slate-400">({row.accession})</span>
+                            </span>
+                            <span className="font-mono font-bold text-blue-700">{pct.toFixed(2)}% probability</span>
+                          </div>
+                          <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              style={{ width: `${pct}%` }}
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isSelected
+                                  ? "bg-gradient-to-r from-cyan-500 to-blue-600"
+                                  : "bg-gradient-to-r from-blue-400 to-blue-500 group-hover:from-blue-500 group-hover:to-blue-600"
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             {result.prefilter ? (
               <div className="mb-4 rounded-md border border-cyan-900/10 bg-cyan-950/5 p-3 text-sm text-slate-700">
