@@ -643,6 +643,8 @@ export function MsMsSearchClient() {
   const [adductMetadataError, setAdductMetadataError] = useState<string | null>(null);
   const [useMlRanking, setUseMlRanking] = useState(false);
   const [tourStep, setTourStep] = useState<number | null>(null);
+  const [searchLatency, setSearchLatency] = useState<number | null>(null);
+  const [showSusModal, setShowSusModal] = useState(false);
 
   useEffect(() => {
     if (tourStep === 4) {
@@ -760,6 +762,7 @@ export function MsMsSearchClient() {
     setIsLoading(true);
     setErrorMessage(null);
 
+    const startTime = performance.now();
     try {
       const trimmedPrecursorMz = precursorMzDraft.trim();
       const data = await postJson<MsMsSearchResponse>("/api/search/ms-ms", {
@@ -779,6 +782,8 @@ export function MsMsSearchClient() {
         limit: limitDraft,
       });
 
+      const endTime = performance.now();
+      setSearchLatency(Math.round(endTime - startTime));
       setResult(data);
       setPage(data.pagination.page);
       setPageInput(String(data.pagination.page));
@@ -855,6 +860,7 @@ export function MsMsSearchClient() {
 
     setIsLoading(true);
     setErrorMessage(null);
+    const startTime = performance.now();
     try {
       const data = await postJson<MsMsSearchResponse>("/api/search/ms-ms", {
         peakList: "90.05 10.0\n132.08 100.0\n115.05 30.0",
@@ -873,6 +879,8 @@ export function MsMsSearchClient() {
         limit: 10,
       });
 
+      const endTime = performance.now();
+      setSearchLatency(Math.round(endTime - startTime));
       setResult(data);
       setPage(data.pagination.page);
       setPageInput(String(data.pagination.page));
@@ -1324,8 +1332,9 @@ export function MsMsSearchClient() {
                   Click a row or chart bar to select a candidate and update the comparison graph.
                 </p>
               </div>
-              <div className="text-xs text-slate-500">
-                Candidate cap {result.candidateLimit} · scored {result.scoredCandidates}
+              <div className="text-right text-xs text-slate-500">
+                <div>Candidate cap {result.candidateLimit} · scored {result.scoredCandidates}</div>
+                {searchLatency !== null && <div className="mt-1 text-cyan-700 font-semibold">Latency: {searchLatency} ms</div>}
               </div>
             </div>
 
@@ -1598,6 +1607,63 @@ export function MsMsSearchClient() {
       >
         ?
       </button>
+
+      {/* Floating feedback / SUS questionnaire button */}
+      <button
+        onClick={() => setShowSusModal(true)}
+        title="System Usability Scale (SUS) Feedback"
+        className="fixed bottom-6 left-6 h-12 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg flex items-center justify-center font-semibold text-sm gap-2 transition-transform hover:scale-105 active:scale-95 z-50 cursor-pointer"
+      >
+        <span>📝 Usability Feedback</span>
+      </button>
+
+      {/* SUS Modal Dialog */}
+      {showSusModal && (
+        <div className="fixed inset-0 bg-slate-900/60 z-[80] backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 relative flex flex-col gap-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">System Usability Survey</h3>
+                <p className="text-xs text-slate-500">Metabolite Matcher Evaluation</p>
+              </div>
+              <button 
+                onClick={() => setShowSusModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="text-center py-4 space-y-4">
+              <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-blue-50 text-blue-600 text-2xl">
+                📋
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-slate-700 font-medium leading-relaxed">
+                  Please help us evaluate the usability of the system by completing the standard System Usability Scale (SUS) survey.
+                </p>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  The survey is hosted on Google Forms and consists of 10 quick rating questions. Your feedback is fully anonymous.
+                </p>
+              </div>
+              <div className="pt-4 flex flex-col sm:flex-row gap-2 justify-center">
+                <Button type="button" variant="outline" onClick={() => setShowSusModal(false)} className="w-full sm:w-auto">
+                  Cancel
+                </Button>
+                <a
+                  href="https://forms.gle/oeeiCc8dGyGoKySm7"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowSusModal(false)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-blue-600 text-white hover:bg-blue-700 h-10 py-2 px-4 shadow-sm font-semibold hover:scale-[1.02] active:scale-[0.98] transition-transform"
+                >
+                  Open Survey ↗
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
