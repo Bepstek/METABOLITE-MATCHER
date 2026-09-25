@@ -5,7 +5,7 @@ import { handleApiError } from "../../../_utils/api-response";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_request: NextRequest, { params }: { params: { accession: string } }) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ accession: string }> }) {
   try {
     const { accession } = await params;
     const rows = await listCompoundAdductsService(db, { accession: accession });

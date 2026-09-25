@@ -1,30 +1,32 @@
-# HMDB Search Engine
+# Metabolite Matcher (HMDB Search Engine)
 
-A custom HMDB-like mass spectrometry search engine built with:
+A custom HMDB-like (Human Metabolome Database) mass spectrometry search engine built for metabolomics analysis, matching, and candidate ranking using machine learning.
 
-- TypeScript
-- Next.js App Router
-- PostgreSQL
-- Kysely
-- shadcn/ui
-- Tailwind CSS
-- Zod
+## Overview & Purpose
 
-The project implements a thesis-oriented HMDB-like search prototype with compound search, mass-based search, spectrum detail pages, and LC-MS/MS cosine similarity search.
+In Liquid Chromatography-Mass Spectrometry (LC-MS/MS), identifying metabolites from raw experimental fragment peaks is a major challenge. Traditional search methods query databases and rank candidates purely based on **Cosine Similarity** (how well the peak intensities and m/z ratios match library spectra). However, Cosine Similarity alone is noisy.
 
-Current core workflows:
+This application solves this by:
+1. Providing an interactive Web UI to query chemical compounds, search observed precursor $m/z$ adducts, and perform spectral search with **mirror spectrum comparison graphs**.
+2. Training machine learning classifiers (Random Forest, Gradient Boosting, SVM) using experimental saliva data to combine multiple features—including **precursor mass error (ppm)**, **spectral cosine score**, **peak count coverage**, and **relative ranks**—into a unified ranker.
+3. Achieving a **72.7% Hit@1 accuracy** (correct compound placed at rank #1) using a query-level GroupKFold cross-validated Random Forest model, compared to only **47.7%** using traditional Cosine Similarity.
 
-- HMDB accession lookup
-- Compound name search
-- Compound detail pages with source hierarchy and related spectra
-- Neutral mass search
-- LC-MS/adduct m/z search
-- Primitive fragment peak lookup
-- MS/MS spectrum detail pages
-- LC-MS/MS peak-list search using greedy cosine similarity
-- Mirror spectrum comparison graph for LC-MS/MS search results
+---
 
-Future work such as CCS filtering, parent ion/adduct-aware MS/MS precursor filtering, compound-level result grouping, ML/research APIs, search history, and curated annotations is intentionally deferred until the core v1 workflows are stable.
+## Technical Stack
+
+- **Frontend/Backend Server:** Next.js App Router, TypeScript, Tailwind CSS, shadcn/ui
+- **Database:** PostgreSQL with Kysely query builder
+- **ML Pipeline:** Python 3, scikit-learn, numpy, pandas
+
+---
+
+## Core Workflows Implemented
+
+- **HMDB Accession Lookup & Compound Details:** Inspect synonyms, biological source hierarchies (e.g. biological, endogenous, dietary), and related experimental/predicted spectra.
+- **LC-MS/Adduct $m/z$ Search:** Identify compounds based on precursor $m/z$ and polarity (e.g. $[M+H]^+$, $[M+Na]^+$).
+- **Neutral Mass Search:** Search metabolites by exact monoisotopic mass.
+- **LC-MS/MS Spectral Search:** Paste a raw fragment peak list to score against library spectra, visualize matching peak comparisons, and re-rank candidate matches using the trained Random Forest model.
 
 ---
 
@@ -276,6 +278,47 @@ Open:
 ```txt
 http://localhost:3000
 ```
+
+---
+
+## Run Machine Learning Pipeline
+
+The project includes a complete machine learning pipeline to prepare features, evaluate baselines, export training datasets, and train candidate-ranking models.
+
+### Step 1: Prepare ML Queries
+Align verified compound matches from client spreadsheets with the experimental fragmentation lists:
+```bash
+python scripts/prepare-ml-queries.py
+```
+This generates `datasets/parsed/dstb_ml_queries.json`.
+
+### Step 2: Run Baseline Evaluation
+Evaluate Cosine Similarity vs. Precursor Mass Error directly against the database:
+```bash
+npx tsx scripts/run-ml-evaluation.ts
+```
+This outputs a baseline evaluation report to `docs/ml/candidate-ranking-evaluation.md`.
+
+### Step 3: Export Training Data Features
+Generate the full candidate rows containing ranking features (cosine score, ppm error, balanced coverage, peak counts, etc.) labeled for ML:
+```bash
+npx tsx scripts/export-training-data.ts
+```
+This generates `datasets/parsed/ml_training_dataset.json`.
+
+### Step 4: Train Machine Learning Classifiers
+Standardize features, train classifiers (Random Forest, Gradient Boosting, SVM) using out-of-fold GroupKFold cross-validation, and rank prediction outputs:
+```bash
+python scripts/train-ml-models.py
+```
+This generates the comparison report in `docs/ml/ml-model-comparison.md`.
+
+### Step 5: Plot Comparison Visualizations
+Generate a bar chart comparing Mean Reciprocal Rank (MRR) and Hit@K accuracies across models:
+```bash
+python scripts/plot_ml_comparison.py
+```
+This saves the chart to `docs/ml_model_comparison.png`.
 
 ---
 
@@ -619,6 +662,13 @@ npm run db:test:search
 
 npm run dev
 npm run build
+
+# ML Pipeline Scripts
+python scripts/prepare-ml-queries.py
+npx tsx scripts/run-ml-evaluation.ts
+npx tsx scripts/export-training-data.ts
+python scripts/train-ml-models.py
+python scripts/plot_ml_comparison.py
 ```
 
 ---

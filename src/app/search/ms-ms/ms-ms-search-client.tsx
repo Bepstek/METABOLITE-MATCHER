@@ -77,6 +77,8 @@ type MsMsSearchRow = {
   queryNorm: number;
   libraryNorm: number;
   matchedPeakPairs: MatchedPeakPair[];
+  mlProbability?: number;
+  mlRank?: number;
 };
 
 type MsMsSearchResponse = {
@@ -582,6 +584,34 @@ function MirrorSpectrumGraph({
   );
 }
 
+const TOUR_STEPS = [
+  {
+    targetId: "msms-peak-list",
+    title: "MS/MS Peak List",
+    description: "Paste your raw fragment peaks here. The format should be one peak per line containing m/z and intensity (separated by space, tab, or comma). Only the first two numeric columns are used."
+  },
+  {
+    targetId: "tour-tolerance",
+    title: "Fragment Tolerance",
+    description: "Specify the tolerance window (in Da or ppm) used to match your query peaks against database library peaks."
+  },
+  {
+    targetId: "tour-spectrum-kind",
+    title: "Spectrum Kind",
+    description: "Filter library candidates by experimental spectra (from actual lab samples), predicted spectra (theoretically modeled), or search against both."
+  },
+  {
+    targetId: "tour-precursor-toggle",
+    title: "Precursor Filter Toggle",
+    description: "Expand optional precursor m/z prefiltering. Supplying precursor m/z narrows candidates significantly using computed adduct masses."
+  },
+  {
+    targetId: "tour-ml-ranking",
+    title: "ML Re-ranking Option",
+    description: "Toggle our query-level trained Random Forest model. It combines cosine similarity, ppm mass error, and fragment coverage to place the correct compound match at rank #1."
+  }
+];
+
 export function MsMsSearchClient() {
   const [peakListDraft, setPeakListDraft] = useState("");
   const [toleranceDraft, setToleranceDraft] = useState("0.1");
@@ -611,6 +641,32 @@ export function MsMsSearchClient() {
   const [precursorAdductIdsDraft, setPrecursorAdductIdsDraft] = useState<number[]>([]);
   const [adductOptions, setAdductOptions] = useState<AdductOption[]>([]);
   const [adductMetadataError, setAdductMetadataError] = useState<string | null>(null);
+  const [useMlRanking, setUseMlRanking] = useState(false);
+  const [tourStep, setTourStep] = useState<number | null>(null);
+  const [searchLatency, setSearchLatency] = useState<number | null>(null);
+  const [showSusModal, setShowSusModal] = useState(false);
+
+  useEffect(() => {
+    if (tourStep === 4) {
+      setShowPrecursorFilter(true);
+    }
+  }, [tourStep]);
+
+  useEffect(() => {
+    if (tourStep === null) return;
+
+    const step = TOUR_STEPS[tourStep];
+    const element = document.getElementById(step.targetId);
+    if (!element) return;
+
+    // Apply high visibility styles
+    element.classList.add("relative", "z-[70]", "ring-4", "ring-cyan-500", "bg-white", "shadow-2xl", "p-1.5", "rounded-md");
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    return () => {
+      element.classList.remove("relative", "z-[70]", "ring-4", "ring-cyan-500", "bg-white", "shadow-2xl", "p-1.5", "rounded-md");
+    };
+  }, [tourStep]);
 
   useEffect(() => {
     setPrecursorAdductIdsDraft([]);
@@ -706,6 +762,7 @@ export function MsMsSearchClient() {
     setIsLoading(true);
     setErrorMessage(null);
 
+    const startTime = performance.now();
     try {
       const trimmedPrecursorMz = precursorMzDraft.trim();
       const data = await postJson<MsMsSearchResponse>("/api/search/ms-ms", {
@@ -720,10 +777,13 @@ export function MsMsSearchClient() {
         precursorAdductIds: polarityDraft === "both" ? [] : precursorAdductIdsDraft,
         sourceTermId: sourceTermIdDraft === "any" ? undefined : Number(sourceTermIdDraft),
         minMatchedPeaks: minMatchedPeaksDraft,
+        useMlRanking,
         page: nextPage,
         limit: limitDraft,
       });
 
+      const endTime = performance.now();
+      setSearchLatency(Math.round(endTime - startTime));
       setResult(data);
       setPage(data.pagination.page);
       setPageInput(String(data.pagination.page));
@@ -760,6 +820,7 @@ export function MsMsSearchClient() {
     setGraphMinIntensity(DEFAULT_GRAPH_MIN_INTENSITY);
     setShowPrecursorFilter(false);
     clearPrecursorFilter();
+    setUseMlRanking(false);
     setResult(null);
     setSelectedResult(null);
     setSelectedSpectrumDetail(null);
@@ -786,6 +847,49 @@ export function MsMsSearchClient() {
     setLimitDraft(10);
     setShowPrecursorFilter(false);
     clearPrecursorFilter();
+  }
+
+  async function runMlExample() {
+    setTourStep(null);
+    setPeakListDraft("90.05 10.0\n132.08 100.0\n115.05 30.0");
+    setPrecursorMzDraft("132.0768");
+    setPrecursorToleranceDraft("5");
+    setPrecursorToleranceUnitDraft("ppm");
+    setUseMlRanking(true);
+    setShowPrecursorFilter(true);
+
+    setIsLoading(true);
+    setErrorMessage(null);
+    const startTime = performance.now();
+    try {
+      const data = await postJson<MsMsSearchResponse>("/api/search/ms-ms", {
+        peakList: "90.05 10.0\n132.08 100.0\n115.05 30.0",
+        tolerance: 0.1,
+        toleranceUnit: "da",
+        spectrumKind: "both",
+        polarity: "positive",
+        precursorMz: 132.0768,
+        precursorTolerance: 5,
+        precursorToleranceUnit: "ppm",
+        precursorAdductIds: [],
+        sourceTermId: undefined,
+        minMatchedPeaks: 1,
+        useMlRanking: true,
+        page: 1,
+        limit: 10,
+      });
+
+      const endTime = performance.now();
+      setSearchLatency(Math.round(endTime - startTime));
+      setResult(data);
+      setPage(data.pagination.page);
+      setPageInput(String(data.pagination.page));
+    } catch (error) {
+      setResult(null);
+      setErrorMessage(error instanceof Error ? error.message : "Search failed");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   function handleLimitChange(value: string) {
@@ -892,7 +996,7 @@ export function MsMsSearchClient() {
             </div>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-[1fr_120px] gap-3">
+              <div id="tour-tolerance" className="grid grid-cols-[1fr_120px] gap-3 transition-all duration-300">
                 <div className="space-y-1">
                   <label className="text-sm font-semibold text-slate-950">Fragment tolerance ±</label>
                   <Input
@@ -918,7 +1022,7 @@ export function MsMsSearchClient() {
                 </div>
               </div>
 
-              <div className="space-y-1">
+              <div id="tour-spectrum-kind" className="space-y-1 transition-all duration-300">
                 <label className="text-sm font-semibold text-slate-950">Spectrum kind</label>
                 <Select
                   value={spectrumKindDraft}
@@ -1000,7 +1104,13 @@ export function MsMsSearchClient() {
             </div>
 
             <div className="border-t border-cyan-900/10 pt-4 lg:col-span-2">
-              <Button type="button" variant="outline" onClick={() => setShowPrecursorFilter((current) => !current)}>
+              <Button
+                id="tour-precursor-toggle"
+                type="button"
+                variant="outline"
+                onClick={() => setShowPrecursorFilter((current) => !current)}
+                className="transition-all duration-300"
+              >
                 {showPrecursorFilter ? "Hide precursor filter" : "Show precursor filter"}
               </Button>
 
@@ -1029,6 +1139,21 @@ export function MsMsSearchClient() {
                           inputMode="decimal"
                           placeholder="299.2946"
                         />
+                      </div>
+
+                      <div id="tour-ml-ranking" className="transition-all duration-300">
+                        <label className="flex items-center gap-2 mt-2 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={useMlRanking}
+                            disabled={!precursorMzDraft.trim()}
+                            onChange={(event) => setUseMlRanking(event.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300"
+                          />
+                          <span className={!precursorMzDraft.trim() ? "text-slate-400" : ""}>
+                            Use ML Re-ranking (Random Forest)
+                          </span>
+                        </label>
                       </div>
 
                       <div className="grid grid-cols-[1fr_120px] gap-3">
@@ -1204,13 +1329,64 @@ export function MsMsSearchClient() {
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">Search Results</h2>
                 <p className="text-sm text-slate-600">
-                  Ranked by cosine similarity, then matched peaks. Click a row to update the comparison graph.
+                  Click a row or chart bar to select a candidate and update the comparison graph.
                 </p>
               </div>
-              <div className="text-xs text-slate-500">
-                Candidate cap {result.candidateLimit} · scored {result.scoredCandidates}
+              <div className="text-right text-xs text-slate-500">
+                <div>Candidate cap {result.candidateLimit} · scored {result.scoredCandidates}</div>
+                {searchLatency !== null && <div className="mt-1 text-cyan-700 font-semibold">Latency: {searchLatency} ms</div>}
               </div>
             </div>
+
+            {/* ML Probability Bar Chart */}
+            {(() => {
+              const hasMlResults = result.rows.some((row) => row.mlProbability !== undefined);
+              if (!hasMlResults) return null;
+
+              const topRowsForChart = result.rows.slice(0, 5);
+              return (
+                <div className="mb-6 rounded-lg border border-blue-900/10 bg-blue-50/20 p-4 animate-in fade-in duration-300">
+                  <h3 className="text-sm font-semibold text-blue-950 mb-3 flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                    Top Candidate ML Probabilities (Random Forest Classifier)
+                  </h3>
+                  <div className="space-y-3">
+                    {topRowsForChart.map((row) => {
+                      const prob = row.mlProbability ?? 0;
+                      const pct = prob * 100;
+                      const isSelected = selectedResult?.hmdbSpectrumId === row.hmdbSpectrumId;
+
+                      return (
+                        <div
+                          key={row.hmdbSpectrumId}
+                          onClick={() => setSelectedResult(row)}
+                          className={`group cursor-pointer rounded-md p-2 transition-all hover:bg-blue-50/50 ${
+                            isSelected ? "bg-blue-50/80 ring-1 ring-blue-300" : ""
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="font-semibold text-slate-800 truncate max-w-[70%]">
+                              {row.name} <span className="font-mono text-slate-400">({row.accession})</span>
+                            </span>
+                            <span className="font-mono font-bold text-blue-700">{pct.toFixed(2)}% probability</span>
+                          </div>
+                          <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              style={{ width: `${pct}%` }}
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isSelected
+                                  ? "bg-gradient-to-r from-cyan-500 to-blue-600"
+                                  : "bg-gradient-to-r from-blue-400 to-blue-500 group-hover:from-blue-500 group-hover:to-blue-600"
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             {result.prefilter ? (
               <div className="mb-4 rounded-md border border-cyan-900/10 bg-cyan-950/5 p-3 text-sm text-slate-700">
@@ -1238,89 +1414,106 @@ export function MsMsSearchClient() {
             ) : null}
 
             <div className="overflow-x-auto rounded-md border lg:overflow-x-visible">
-              <Table className="min-w-210 table-fixed lg:min-w-0 lg:w-full">
-                <TableHeader className="bg-cyan-950/5">
-                  <TableRow>
-                    <TableHead className="w-74 lg:w-[34%]">Compound</TableHead>
-                    <TableHead className="w-30 lg:w-[14%]">Spectrum</TableHead>
-                    <TableHead className="w-24 lg:w-[11%]">Type</TableHead>
-                    <TableHead className="w-31 lg:w-[15%]">Instrument</TableHead>
-                    <TableHead className="w-22 lg:w-[9%]">Collision</TableHead>
-                    <TableHead className="w-24 lg:w-[8%]">Matched</TableHead>
-                    <TableHead className="w-25 lg:w-[9%]">Similarity (%)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading && result.rows.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-slate-500">
-                        Loading results...
-                      </TableCell>
-                    </TableRow>
-                  ) : result.rows.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-slate-500">
-                        No MS/MS matches found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    result.rows.map((row) => {
-                      const selected = selectedResult?.hmdbSpectrumId === row.hmdbSpectrumId;
-                      return (
-                        <TableRow
-                          key={`${row.spectrumId}-${row.hmdbSpectrumId}`}
-                          className={selected ? "cursor-pointer bg-cyan-950/5" : "cursor-pointer"}
-                          onClick={() => setSelectedResult(row)}
-                        >
-                          <TableCell className="align-top">
-                            <div className="min-w-0 space-y-1">
-                              <Link
-                                href={`/compounds/${row.accession}`}
-                                className="block truncate font-mono text-xs font-medium text-cyan-800 underline-offset-4 hover:underline"
-                                onClick={(event) => event.stopPropagation()}
-                                title={row.accession}
-                              >
-                                {row.accession}
-                              </Link>
-                              <div className="truncate text-sm font-medium text-slate-900" title={row.name}>
-                                {row.name}
-                              </div>
-                              <div className="truncate text-xs text-slate-600">
-                                <ChemicalFormula formula={row.chemicalFormula} />
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="align-top font-mono text-xs">
-                            <Link
-                              href={`/spectra/ms-ms/${row.hmdbSpectrumId}`}
-                              className="text-cyan-800 underline-offset-4 hover:underline"
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              {row.hmdbSpectrumId}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="align-top text-xs">
-                            <div>{row.spectrumType}</div>
-                            <div className="text-slate-500">{formatNullableText(row.polarity)}</div>
-                          </TableCell>
-                          <TableCell className="truncate align-top text-xs" title={row.instrumentType ?? undefined}>
-                            {row.instrumentType ?? "—"}
-                          </TableCell>
-                          <TableCell className="align-top font-mono text-xs tabular-nums">
-                            {formatNullableNumber(row.collisionEnergyVoltage)}
-                          </TableCell>
-                          <TableCell className="align-top font-mono text-xs tabular-nums">
-                            {row.matchedPeaks}/{row.totalQueryPeaks}
-                          </TableCell>
-                          <TableCell className="align-top font-mono text-sm font-semibold tabular-nums text-cyan-900">
-                            {formatPercent(row.cosinePercent)}
+              {(() => {
+                const hasMlResults = result.rows.some((row) => row.mlProbability !== undefined);
+                return (
+                  <Table className="min-w-210 table-fixed lg:min-w-0 lg:w-full">
+                    <TableHeader className="bg-cyan-950/5">
+                      <TableRow>
+                        {hasMlResults && <TableHead className="w-20 lg:w-[6%]">ML Rank</TableHead>}
+                        <TableHead className="w-74 lg:w-[34%]">Compound</TableHead>
+                        <TableHead className="w-30 lg:w-[14%]">Spectrum</TableHead>
+                        <TableHead className="w-24 lg:w-[11%]">Type</TableHead>
+                        <TableHead className="w-31 lg:w-[15%]">Instrument</TableHead>
+                        <TableHead className="w-22 lg:w-[9%]">Collision</TableHead>
+                        <TableHead className="w-24 lg:w-[8%]">Matched</TableHead>
+                        <TableHead className="w-25 lg:w-[9%]">Similarity (%)</TableHead>
+                        {hasMlResults && <TableHead className="w-28 lg:w-[10%]">ML Prob</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading && result.rows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={hasMlResults ? 9 : 7} className="h-24 text-center text-slate-500">
+                            Loading results...
                           </TableCell>
                         </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
+                      ) : result.rows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={hasMlResults ? 9 : 7} className="h-24 text-center text-slate-500">
+                            No MS/MS matches found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        result.rows.map((row) => {
+                          const selected = selectedResult?.hmdbSpectrumId === row.hmdbSpectrumId;
+                          return (
+                            <TableRow
+                              key={`${row.spectrumId}-${row.hmdbSpectrumId}`}
+                              className={selected ? "cursor-pointer bg-cyan-950/5" : "cursor-pointer"}
+                              onClick={() => setSelectedResult(row)}
+                            >
+                              {hasMlResults && (
+                                <TableCell className="align-top font-mono text-xs tabular-nums text-slate-600">
+                                  {row.mlRank !== undefined ? `#${row.mlRank}` : "—"}
+                                </TableCell>
+                              )}
+                              <TableCell className="align-top">
+                                <div className="min-w-0 space-y-1">
+                                  <Link
+                                    href={`/compounds/${row.accession}`}
+                                    className="block truncate font-mono text-xs font-medium text-cyan-800 underline-offset-4 hover:underline"
+                                    onClick={(event) => event.stopPropagation()}
+                                    title={row.accession}
+                                  >
+                                    {row.accession}
+                                  </Link>
+                                  <div className="truncate text-sm font-medium text-slate-900" title={row.name}>
+                                    {row.name}
+                                  </div>
+                                  <div className="truncate text-xs text-slate-600">
+                                    <ChemicalFormula formula={row.chemicalFormula} />
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="align-top font-mono text-xs">
+                                <Link
+                                  href={`/spectra/ms-ms/${row.hmdbSpectrumId}`}
+                                  className="text-cyan-800 underline-offset-4 hover:underline"
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  {row.hmdbSpectrumId}
+                                </Link>
+                              </TableCell>
+                              <TableCell className="align-top text-xs">
+                                <div>{row.spectrumType}</div>
+                                <div className="text-slate-500">{formatNullableText(row.polarity)}</div>
+                              </TableCell>
+                              <TableCell className="truncate align-top text-xs" title={row.instrumentType ?? undefined}>
+                                {row.instrumentType ?? "—"}
+                              </TableCell>
+                              <TableCell className="align-top font-mono text-xs tabular-nums">
+                                {formatNullableNumber(row.collisionEnergyVoltage)}
+                              </TableCell>
+                              <TableCell className="align-top font-mono text-xs tabular-nums">
+                                {row.matchedPeaks}/{row.totalQueryPeaks}
+                              </TableCell>
+                              <TableCell className="align-top font-mono text-sm font-semibold tabular-nums text-cyan-900">
+                                {formatPercent(row.cosinePercent)}
+                              </TableCell>
+                              {hasMlResults && (
+                                <TableCell className="align-top font-mono text-sm font-semibold tabular-nums text-blue-900">
+                                  {row.mlProbability !== undefined ? `${(row.mlProbability * 100).toFixed(2)}%` : "—"}
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                );
+              })()}
             </div>
 
             <PaginationControls
@@ -1340,6 +1533,137 @@ export function MsMsSearchClient() {
           <SectionPanel className="text-sm text-slate-600">Enter an MS/MS peak list and click Search.</SectionPanel>
         )}
       </div>
+
+      {/* Semi-transparent blue backdrop overlay for tour */}
+      {tourStep !== null && (
+        <div
+          className="fixed inset-0 bg-blue-900/40 z-[60] backdrop-blur-[1px] transition-opacity duration-300"
+          onClick={() => setTourStep(null)}
+        />
+      )}
+
+      {/* Tour dialog tooltip card */}
+      {tourStep !== null && (
+        <div className="fixed bottom-24 right-6 w-96 rounded-xl border border-cyan-800/10 bg-white p-5 shadow-2xl z-[70] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-cyan-700">
+              Guided Tour · Step {tourStep + 1} of {TOUR_STEPS.length}
+            </span>
+            <button
+              onClick={() => setTourStep(null)}
+              className="text-slate-400 hover:text-slate-600 text-xs font-semibold"
+            >
+              Skip Tour
+            </button>
+          </div>
+          <h4 className="text-base font-semibold text-slate-900 mb-2">
+            {TOUR_STEPS[tourStep].title}
+          </h4>
+          <p className="text-sm text-slate-600 leading-relaxed mb-4">
+            {TOUR_STEPS[tourStep].description}
+          </p>
+          <div className="flex justify-between items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={tourStep === 0}
+              onClick={() => setTourStep((prev) => (prev !== null ? prev - 1 : null))}
+            >
+              Previous
+            </Button>
+            <div className="flex gap-2">
+              {tourStep === TOUR_STEPS.length - 1 && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                  onClick={runMlExample}
+                >
+                  Run Example
+                </Button>
+              )}
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (tourStep === TOUR_STEPS.length - 1) {
+                    setTourStep(null);
+                  } else {
+                    setTourStep((prev) => (prev !== null ? prev + 1 : null));
+                  }
+                }}
+              >
+                {tourStep === TOUR_STEPS.length - 1 ? "Finish" : "Next"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating help / restart tour button */}
+      <button
+        onClick={() => setTourStep(0)}
+        title="Start Guided Tour"
+        className="fixed bottom-6 right-6 h-12 w-12 rounded-full bg-cyan-700 hover:bg-cyan-800 text-white shadow-lg flex items-center justify-center font-bold text-lg transition-transform hover:scale-105 active:scale-95 z-50 cursor-pointer"
+      >
+        ?
+      </button>
+
+      {/* Floating feedback / SUS questionnaire button */}
+      <button
+        onClick={() => setShowSusModal(true)}
+        title="System Usability Scale (SUS) Feedback"
+        className="fixed bottom-6 left-6 h-12 px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg flex items-center justify-center font-semibold text-sm gap-2 transition-transform hover:scale-105 active:scale-95 z-50 cursor-pointer"
+      >
+        <span>📝 Usability Feedback</span>
+      </button>
+
+      {/* SUS Modal Dialog */}
+      {showSusModal && (
+        <div className="fixed inset-0 bg-slate-900/60 z-[80] backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 relative flex flex-col gap-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">System Usability Survey</h3>
+                <p className="text-xs text-slate-500">Metabolite Matcher Evaluation</p>
+              </div>
+              <button 
+                onClick={() => setShowSusModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="text-center py-4 space-y-4">
+              <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-blue-50 text-blue-600 text-2xl">
+                📋
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-slate-700 font-medium leading-relaxed">
+                  Please help us evaluate the usability of the system by completing the standard System Usability Scale (SUS) survey.
+                </p>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  The survey is hosted on Google Forms and consists of 10 quick rating questions. Your feedback is fully anonymous.
+                </p>
+              </div>
+              <div className="pt-4 flex flex-col sm:flex-row gap-2 justify-center">
+                <Button type="button" variant="outline" onClick={() => setShowSusModal(false)} className="w-full sm:w-auto">
+                  Cancel
+                </Button>
+                <a
+                  href="https://forms.gle/oeeiCc8dGyGoKySm7"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowSusModal(false)}
+                  className="w-full sm:w-auto inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-blue-600 text-white hover:bg-blue-700 h-10 py-2 px-4 shadow-sm font-semibold hover:scale-[1.02] active:scale-[0.98] transition-transform"
+                >
+                  Open Survey ↗
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
